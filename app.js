@@ -1,19 +1,18 @@
-const { mongoUri, port } = require("./config");
 const express = require("express");
+const mongoose = require("mongoose");
 const session = require("express-session");
 const MongoDBStore = require("connect-mongodb-session")(session);
 
-const dummyAuthRouter = require("./routes/dummyauth");
-const sessionAuthRouter = require("./routes/sessionauth");
+const { mongoUri, port } = require("./config");
+const authRouter = require("./routes/auth");
 const errorController = require("./controllers/error.controller");
-
-const app = express();
 
 const store = new MongoDBStore({
   uri: mongoUri,
   collection: "sessions",
 });
 
+const app = express();
 app.use(express.json());
 app.use(
   session({
@@ -24,27 +23,23 @@ app.use(
   })
 );
 
-// Dummy auth middleware
+// Auth middleware
 app.use((req, res, next) => {
-  // Check if the user is logged in
   const cookies = req.get("Cookie");
   if (cookies) {
-    const loggedIn = cookies
-      .split(";")
-      .find((cookie) => cookie.trim() === "dummyLoggedIn=true");
-    if (loggedIn) {
-      req.isDummyLoggedIn = true;
-    }
+    // TOOO: Implement proper cookie parsing
   }
   next();
 });
 
-app.get("/", function (req, res) {
-  res.send("Hello " + JSON.stringify(req.session));
-});
-
-app.use("/dummyauth", dummyAuthRouter);
-app.use("/sessionauth", sessionAuthRouter);
+app.use("/auth", authRouter);
 app.use(errorController.get404);
 
-app.listen(port || 3000);
+mongoose
+  .connect(mongoUri)
+  .then(() => {
+    app.listen(port || 3000);
+  })
+  .catch((err) => {
+    console.error(err);
+  });
