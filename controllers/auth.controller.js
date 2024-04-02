@@ -83,6 +83,35 @@ exports.reset = (req, res, next) => {
   });
 };
 
+exports.newPassword = (req, res, next) => {
+  const token = req.params.token;
+  const { password } = req.body;
+
+  User.findOne({
+    resetToken: token,
+    resetTokenExpiration: { $gt: Date.now() },
+  })
+    .then((userDoc) => {
+      if (!userDoc) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+
+      return bcrypt.hash(password, 12).then((hashedPassword) => {
+        userDoc.password = hashedPassword;
+        userDoc.resetToken = undefined;
+        userDoc.resetTokenExpiration = undefined;
+        return userDoc.save();
+      });
+    })
+    .then(() => {
+      return res.status(200).json({ message: "Password updated" });
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(500).json({ message: "Server error" });
+    });
+};
+
 exports.logout = (req, res, next) => {
   req.session.destroy(() => {
     res.status(200).json({ message: "Logged out" });
