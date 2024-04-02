@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const User = require("../models/user");
 
@@ -50,6 +51,36 @@ exports.signup = (req, res, next) => {
       console.error(err);
       res.status(500).json({ message: "Server error" });
     });
+};
+
+exports.reset = (req, res, next) => {
+  const { email } = req.body;
+
+  crypto.randomBytes(32, (err, buffer) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Server error" });
+    }
+
+    const token = buffer.toString("hex");
+    User.findOne({ email })
+      .then((userDoc) => {
+        if (userDoc) {
+          userDoc.resetToken = token;
+          userDoc.resetTokenExpiration = Date.now() + 3600000;
+          return userDoc.save();
+        }
+      })
+      .then(() => {
+        return res
+          .status(200)
+          .json({ message: "Reset token created if user exists" });
+      })
+      .catch((err) => {
+        console.error(err);
+        return res.status(500).json({ message: "Server error" });
+      });
+  });
 };
 
 exports.logout = (req, res, next) => {
